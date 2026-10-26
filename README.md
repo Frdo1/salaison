@@ -1,50 +1,32 @@
-# Welcome to your Expo app 👋
+# Calculatrice Salaison
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application Android (Expo / React Native) pour calculer les temps de salage et de séchage
+des viandes séchées, suivre ses pièces en cours et garder une galerie photo.
 
-## Get started
+Package Play Store : `com.frdo1.monapplihtml` — projet EAS : `@frdo1/monapplihtml`.
 
-1. Install dependencies
+## Version 1.1.0
 
-   ```bash
-   npm install
-   ```
+La v1.0 affichait une page web hébergée sur GitHub Pages ; cette page a disparu,
+l'appli publiée n'affichait plus qu'une erreur. La v1.1 contient tout le calculateur
+dans l'APK et fonctionne **hors ligne**.
 
-2. Start the app
+- Écrans : Accueil (calculateur), Planning (suivi des pièces), Pièces (stock), galerie photo, 6 langues.
+- Calculs repris de la v1.0, avec corrections :
+  - perte de poids visée 30-40 % et poids cible en grammes (la v1.0 affichait 0,5 % par semaine) ;
+  - températures de séchage : frigo 3-6 °C, cave à vin 10-14 °C ;
+  - saumure plus longue que l'enfouissement à sec ;
+  - quantités de sel / mélange SSV / eau pour le poids saisi ;
+  - saucisson : sel incorporé (27 g/kg), pas de phase de salage.
+- Nouveau : pesées avec suivi de la perte de poids, rappels de fin de salage et de séchage,
+  bouton « Ajouter au planning » depuis le résultat.
 
-   ```bash
-   npx expo start
-   ```
+Le moteur de calcul est dans `lib/calc.ts`, les textes dans `lib/i18n.ts`.
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Compiler
 
 ```bash
-npm run reset-project
+npm install
+npx eas build -p android --profile production   # AAB pour le Play Store (versionCode auto)
+npx eas build -p android --profile preview      # APK à installer directement
 ```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
