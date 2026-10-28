@@ -22,18 +22,23 @@ const STATUS_COLOR: Record<Status, string> = { salting: C.blue, drying: C.amber,
 export default function Planning() {
   const { t } = useI18n();
   const { plan, update } = useStore();
-  const params = useLocalSearchParams<{ meat?: string; method?: string; place?: string; weight?: string }>();
+  const params = useLocalSearchParams<{ meat?: string; method?: string; place?: string; weight?: string; ts?: string }>();
   const [formOpen, setFormOpen] = useState(false);
   const [weighing, setWeighing] = useState<PlanEntry | null>(null);
 
   // Arrivée depuis le bouton « Ajouter au planning » de l'accueil.
+  // `ts` change à chaque appui : le formulaire se rouvre même pour la même viande et le même poids.
+  const [fromHome, setFromHome] = useState(false);
   useEffect(() => {
-    if (params.meat) setFormOpen(true);
-  }, [params.meat, params.weight]);
+    if (params.meat && params.ts) {
+      setFromHome(true);
+      setFormOpen(true);
+    }
+  }, [params.ts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeForm = () => {
     setFormOpen(false);
-    if (params.meat) router.setParams({ meat: undefined, method: undefined, place: undefined, weight: undefined });
+    setFromHome(false);
   };
 
   const remove = (e: PlanEntry) =>
@@ -83,12 +88,12 @@ export default function Planning() {
       {formOpen && (
         <EntryForm
           onClose={closeForm}
-          initial={{
+          initial={fromHome ? {
             meat: MEATS.includes(params.meat as MeatId) ? (params.meat as MeatId) : undefined,
             method: METHODS.includes(params.method as MethodId) ? (params.method as MethodId) : undefined,
             place: PLACES.includes(params.place as PlaceId) ? (params.place as PlaceId) : undefined,
             weight: params.weight,
-          }}
+          } : {}}
         />
       )}
       <WeighSheet entry={weighing} onClose={() => setWeighing(null)} />

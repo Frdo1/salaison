@@ -13,7 +13,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MEATS, MeatId, METHODS, MethodId, PLACES, PlaceId } from '@/lib/calc';
 import { fmtDate, useI18n } from '@/lib/i18n';
@@ -171,10 +171,19 @@ export function Sheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  // Android plein écran (edge-to-edge) : la fenêtre passe sous la barre de navigation du téléphone.
+  // On réserve sa hauteur en bas pour que le bouton Enregistrer reste accessible.
+  const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      navigationBarTranslucent>
       <Pressable style={st.backdrop} onPress={onClose} />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={st.sheetWrap}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={st.sheetWrap}>
         <View style={st.sheet}>
           <View style={st.sheetHead}>
             <Text style={st.sheetTitle}>{title}</Text>
@@ -182,7 +191,7 @@ export function Sheet({
               <Text style={{ fontSize: 30, color: C.muted }}>✕</Text>
             </Pressable>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 28 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 28 + insets.bottom }}>
             {children}
           </ScrollView>
         </View>
@@ -249,7 +258,7 @@ const st = StyleSheet.create({
   kvKey: { color: C.muted, fontSize: 16, flexShrink: 1 },
   kvVal: { color: C.text, fontSize: 16, fontWeight: '600', textAlign: 'right', flexShrink: 1 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '88%' },
+  sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '90%' },
   sheet: { backgroundColor: C.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 18 },
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   sheetTitle: { fontSize: 22, fontWeight: '800', color: C.text, flex: 1 },

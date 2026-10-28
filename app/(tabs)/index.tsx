@@ -164,7 +164,7 @@ export default function Accueil() {
                 onPress={() =>
                   router.navigate({
                     pathname: '/planning',
-                    params: { meat: result.meat, method: result.method, place: result.place, weight: String(result.weightKg) },
+                    params: { meat: result.meat, method: result.method, place: result.place, weight: String(result.weightKg), ts: String(Date.now()) },
                   })
                 }>
                 <Text style={[S.buttonText, { color: C.orange }]}>📅 {t('add_to_planning')}</Text>
