@@ -20,6 +20,8 @@ export type PlanEntry = {
   lossMax: number;
   weighings: Weighing[];
   notifIds: string[];
+  /** Événements de l'agenda du téléphone (absent = pas encore tenté). */
+  calEventIds?: string[];
 };
 
 export type Piece = {

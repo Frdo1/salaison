@@ -5,9 +5,22 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import { Background, DateField, Empty, Field, Header, KV, MeatPicker, MethodPicker, PlacePicker, Sheet } from '@/components/ui';
 import { calculate, currentLoss, isMixedSalt, MeatId, MEATS, MethodId, METHODS, parseWeight, PlaceId, PLACES, scheduleDates } from '@/lib/calc';
 import { fmtDate, useI18n } from '@/lib/i18n';
+import { addToCalendar, removeFromCalendar } from '@/lib/calendar';
 import { cancel, scheduleAt } from '@/lib/notify';
 import { newId, PlanEntry, useStore } from '@/lib/store';
 import { C, S } from '@/lib/theme';
+
+type T = ReturnType<typeof useI18n>['t'];
+
+/** Événements d'agenda d'une pièce : fin de salage (si besoin) et fin de séchage. */
+function calendarEvents(e: Pick<PlanEntry, 'name' | 'meat' | 'saltEnd' | 'dryEnd'>, t: T) {
+  return [
+    ...(isMixedSalt(e.meat)
+      ? []
+      : [{ date: new Date(e.saltEnd), title: t('reminder_salt_title', { name: e.name }), notes: t('reminder_salt_body') }]),
+    { date: new Date(e.dryEnd), title: t('reminder_dry_title', { name: e.name }), notes: t('reminder_dry_body') },
+  ];
+}
 
 type Status = 'salting' | 'drying' | 'done';
 
@@ -36,6 +49,17 @@ export default function Planning() {
     }
   }, [params.ts]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Pièces ajoutées avant l'arrivée de l'agenda : on les y ajoute une seule fois.
+  useEffect(() => {
+    const todo = plan.filter((e) => e.calEventIds === undefined);
+    if (!todo.length) return;
+    (async () => {
+      const done: Record<string, string[]> = {};
+      for (const e of todo) done[e.id] = await addToCalendar(calendarEvents(e, t));
+      update((d) => ({ ...d, plan: d.plan.map((x) => (done[x.id] ? { ...x, calEventIds: done[x.id] } : x)) }));
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const closeForm = () => {
     setFormOpen(false);
     setFromHome(false);
@@ -49,6 +73,7 @@ export default function Planning() {
         style: 'destructive',
         onPress: () => {
           cancel(e.notifIds);
+          removeFromCalendar(e.calEventIds);
           update((d) => ({ ...d, plan: d.plan.filter((x) => x.id !== e.id) }));
         },
       },
@@ -138,6 +163,7 @@ function EntryCard({ entry, onDelete, onWeigh, onStore }: { entry: PlanEntry; on
       <Text style={{ color: C.muted, fontSize: 13, marginTop: 6 }}>
         🔔 {t(entry.notifIds.length ? 'reminders_on' : 'reminders_off')}
       </Text>
+      {!!entry.calEventIds?.length && <Text style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>📅 {t('calendar_on')}</Text>}
 
       {last && (
         <>
@@ -197,6 +223,9 @@ function EntryForm({
       r.mixedSalt ? null : await scheduleAt(saltEnd, t('reminder_salt_title', { name: label }), t('reminder_salt_body')),
       await scheduleAt(dryEnd, t('reminder_dry_title', { name: label }), t('reminder_dry_body')),
     ].filter((x): x is string => !!x);
+    const calEventIds = await addToCalendar(
+      calendarEvents({ name: label, meat, saltEnd: saltEnd.toISOString(), dryEnd: dryEnd.toISOString() }, t),
+    );
     const entry: PlanEntry = {
       id: newId(),
       name: label,
@@ -211,6 +240,7 @@ function EntryForm({
       lossMax: r.lossMax,
       weighings: [],
       notifIds: ids,
+      calEventIds,
     };
     update((d) => ({ ...d, plan: [entry, ...d.plan] }));
     onClose();
