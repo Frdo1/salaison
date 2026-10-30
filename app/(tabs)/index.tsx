@@ -226,23 +226,13 @@ function MethodInfo({ method }: { method: MethodId }) {
   );
 }
 
-/** Protocole 4-2-1 appliqué à la durée calculée (4/7, 2/7, 1/7 du temps). */
+/** Salage sous vide à température constante, puis repos hors sachet au moins aussi long. */
 function SousVideSteps({ hours }: { hours: number }) {
   const { t } = useI18n();
-  const a = Math.round((hours * 4) / 7);
-  const b = Math.round((hours * 2) / 7);
-  const c = hours - a - b;
   return (
     <View style={{ marginTop: 6 }}>
-      {[
-        [a, '4 °C'],
-        [b, '2 °C'],
-        [c, '1 °C'],
-      ].map(([h, temp]) => (
-        <Text key={temp} style={S.line}>
-          • {t('hours', { n: h })} → {temp}
-        </Text>
-      ))}
+      <Text style={S.line}>• {t('sv_step_salt', { n: hours })}</Text>
+      <Text style={S.line}>• {t('sv_step_rest', { n: hours })}</Text>
     </View>
   );
 }
