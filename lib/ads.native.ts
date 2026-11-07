@@ -1,5 +1,7 @@
 import mobileAds, { AdEventType, AdsConsent, InterstitialAd, TestIds } from 'react-native-google-mobile-ads';
 
+import { initPremium, isNoAds, onPremiumChange } from './premium';
+
 // Pubs de test en dev et dans les builds "preview" (EXPO_PUBLIC_ADS_TEST=1 dans eas.json).
 const TEST = __DEV__ || process.env.EXPO_PUBLIC_ADS_TEST === '1';
 
@@ -18,7 +20,7 @@ let calcCount = 0;
 let lastShown = 0;
 const listeners = new Set<(ok: boolean) => void>();
 
-export const adsReady = () => canRequest;
+export const adsReady = () => canRequest && !isNoAds();
 
 /** S'abonner au moment où les pubs peuvent être demandées (après consentement RGPD). */
 export function onAdsReady(cb: (ok: boolean) => void) {
@@ -43,6 +45,8 @@ function loadInterstitial() {
 export async function initAds() {
   if (started) return;
   started = true;
+  await initPremium();
+  if (isNoAds()) return;
   try {
     const info = await AdsConsent.gatherConsent();
     canRequest = info.canRequestAds;
@@ -65,6 +69,7 @@ export async function initAds() {
 /** À appeler après chaque calcul : affiche un interstitiel si la limite le permet. */
 export function maybeShowInterstitial() {
   calcCount++;
+  if (isNoAds()) return;
   if (!canRequest || !loaded || !interstitial) return;
   if (calcCount % EVERY_N_CALCS !== 0) return;
   if (Date.now() - lastShown < MIN_GAP_MS) return;
@@ -78,3 +83,8 @@ export async function openPrivacyOptions() {
     await AdsConsent.showPrivacyOptionsForm();
   } catch {}
 }
+
+// Achat « Sans pub » : on cache la bannière immédiatement.
+onPremiumChange(() => {
+  if (isNoAds()) listeners.forEach((cb) => cb(false));
+});

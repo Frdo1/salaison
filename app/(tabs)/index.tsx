@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Gallery } from '@/components/gallery';
 import { LanguagePicker } from '@/components/language';
+import { NoAdsModal, useNoAds } from '@/components/no-ads';
 import { Background, Bullets, KV, MeatPicker, MethodPicker, PlacePicker } from '@/components/ui';
 import { calculate, CalcResult, isMixedSalt, MeatId, MethodId, parseWeight, PlaceId, SALT_CONDITIONS } from '@/lib/calc';
 import { maybeShowInterstitial } from '@/lib/ads';
@@ -23,6 +24,8 @@ export default function Accueil() {
   const [error, setError] = useState('');
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [noAdsOpen, setNoAdsOpen] = useState(false);
+  const { noAds, available: iapAvailable } = useNoAds();
   const scroll = useRef<ScrollView>(null);
   const resultsY = useRef(0);
   const mixed = isMixedSalt(meat);
@@ -58,6 +61,11 @@ export default function Accueil() {
           <Pressable style={st.topBtn} onPress={() => setGalleryOpen(true)} accessibilityLabel={t('gallery_title')}>
             <Text style={st.topText}>📷 {photos.length}</Text>
           </Pressable>
+          {iapAvailable && !noAds && (
+            <Pressable style={[st.topBtn, st.noAdsBtn]} onPress={() => setNoAdsOpen(true)} accessibilityLabel={t('noads_title')}>
+              <Text style={[st.topText, { color: C.white }]}>🚫 {t('noads_btn')}</Text>
+            </Pressable>
+          )}
           <Pressable style={st.topBtn} onPress={() => setLangOpen(true)} accessibilityLabel={t('language')}>
             <Text style={st.topText}>🌐 {lang.toUpperCase()}</Text>
           </Pressable>
@@ -180,6 +188,7 @@ export default function Accueil() {
 
       <Gallery visible={galleryOpen} onClose={() => setGalleryOpen(false)} />
       <LanguagePicker visible={langOpen} onClose={() => setLangOpen(false)} />
+      <NoAdsModal visible={noAdsOpen} onClose={() => setNoAdsOpen(false)} />
     </Background>
   );
 }
@@ -243,6 +252,7 @@ const st = StyleSheet.create({
   topBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
   topBtn: { backgroundColor: 'rgba(245,245,245,0.92)', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 10 },
   topText: { fontSize: 18, fontWeight: '700', color: C.text },
+  noAdsBtn: { backgroundColor: C.orange, paddingHorizontal: 14 },
   content: { paddingHorizontal: 16, paddingBottom: 40 },
   titleBox: {
     marginTop: 16,
