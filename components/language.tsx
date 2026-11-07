@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
+import { openPrivacyOptions } from '@/lib/ads';
 import { DICTS, LANGS, useI18n } from '@/lib/i18n';
 import { C } from '@/lib/theme';
 
@@ -29,7 +30,15 @@ export function LanguagePicker({ visible, onClose }: { visible: boolean; onClose
               );
             })}
           </ScrollView>
-          <Pressable onPress={onClose} style={{ paddingTop: 18, alignItems: 'center' }}>
+          <Pressable
+            onPress={() => {
+              onClose();
+              openPrivacyOptions();
+            }}
+            style={{ paddingTop: 18, alignItems: 'center' }}>
+            <Text style={{ fontSize: 16, color: C.orange, textDecorationLine: 'underline' }}>{t('privacy_choices')}</Text>
+          </Pressable>
+          <Pressable onPress={onClose} style={{ paddingTop: 14, alignItems: 'center' }}>
             <Text style={{ fontSize: 18, color: C.muted }}>{t('cancel')}</Text>
           </Pressable>
         </Pressable>

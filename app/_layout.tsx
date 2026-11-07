@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { initAds } from '@/lib/ads';
 import { StoreProvider, useStore } from '@/lib/store';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -11,7 +12,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 function Root() {
   const { ready } = useStore();
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
+    if (!ready) return;
+    SplashScreen.hideAsync().catch(() => {});
+    initAds();
   }, [ready]);
   if (!ready) return null;
   return (

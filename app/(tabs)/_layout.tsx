@@ -1,7 +1,9 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
+import { AdBanner } from '@/components/ad-banner';
 import { useI18n } from '@/lib/i18n';
 import { C } from '@/lib/theme';
 
@@ -9,6 +11,12 @@ export default function TabLayout() {
   const { t } = useI18n();
   return (
     <Tabs
+      tabBar={(props) => (
+        <>
+          <AdBanner />
+          <BottomTabBar {...props} />
+        </>
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: C.tab,

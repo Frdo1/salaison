@@ -7,6 +7,7 @@ import { Gallery } from '@/components/gallery';
 import { LanguagePicker } from '@/components/language';
 import { Background, Bullets, KV, MeatPicker, MethodPicker, PlacePicker } from '@/components/ui';
 import { calculate, CalcResult, isMixedSalt, MeatId, MethodId, parseWeight, PlaceId, SALT_CONDITIONS } from '@/lib/calc';
+import { maybeShowInterstitial } from '@/lib/ads';
 import { useI18n } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
 import { C, S } from '@/lib/theme';
@@ -36,6 +37,7 @@ export default function Accueil() {
     setError('');
     setResult(calculate(meat, method, place, w));
     setTimeout(() => scroll.current?.scrollTo({ y: resultsY.current - 10, animated: true }), 80);
+    setTimeout(maybeShowInterstitial, 1500);
   };
 
   // Le résultat n'est plus valable dès qu'on change un paramètre.

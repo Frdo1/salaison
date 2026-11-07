@@ -3,7 +3,7 @@
     "name": "Calculatrice Salaison",
     "slug": "monapplihtml",
     "owner": "frdo1",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "salaison",
@@ -61,6 +61,13 @@
         "expo-calendar",
         {
           "calendarPermission": "L'appli ajoute les dates de fin de salage et de séchage à votre agenda."
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-8906338773802694~2097634899",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ]
     ],
