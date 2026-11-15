@@ -1,7 +1,7 @@
 # Envoie la mise à jour de l'appli sans refaire l'APK (EAS Update).
 # - À chaque push sur master : canal « preview » (APK de test, pubs de test).
 # - Version Play Store (canal « production ») : onglet Actions > « Mise à jour de l'appli » > Run workflow > production.
-# Nécessite le secret EXPO_TOKEN (Settings > Secrets and variables > Actions).
+# Nécessite le secret (déjà en place) EXPO_TOKEN (Settings > Secrets and variables > Actions).
 # Mettre « [build] » dans le message du commit lance aussi un nouvel APK de test (EAS Build, profil preview).
 # Si on ajoute un module natif ou une permission, il faut refaire un build (et monter "version" dans app.json).
 name: Mise à jour de l'appli
