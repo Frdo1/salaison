@@ -1,0 +1,58 @@
+# Envoie la mise à jour de l'appli sans refaire l'APK (EAS Update).
+# - À chaque push sur master : canal « preview » (APK de test, pubs de test).
+# - Version Play Store (canal « production ») : onglet Actions > « Mise à jour de l'appli » > Run workflow > production.
+# Nécessite le secret EXPO_TOKEN (Settings > Secrets and variables > Actions).
+# Si on ajoute un module natif ou une permission, il faut refaire un build (et monter "version" dans app.json).
+name: Mise à jour de l'appli
+
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['README.md', 'politique-confidentialite.html', 'app-ads.txt']
+  workflow_dispatch:
+    inputs:
+      canal:
+        description: Canal à mettre à jour
+        type: choice
+        options: [preview, production]
+        default: preview
+
+concurrency:
+  group: eas-update-${{ inputs.canal || 'preview' }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      CANAL: ${{ inputs.canal || 'preview' }}
+    steps:
+      - name: Vérifier la clé Expo
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "Il manque le secret EXPO_TOKEN dans Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Installer
+        run: npm ci
+
+      - name: Envoyer la mise à jour
+        env:
+          MSG: ${{ github.event.head_commit.message || 'Mise à jour' }}
+        run: |
+          # mêmes réglages que les builds de eas.json : pubs de test sur le canal preview
+          if [ "$CANAL" = "preview" ]; then export EXPO_PUBLIC_ADS_TEST=1; fi
+          eas update --channel "$CANAL" --platform android --non-interactive --message "$(echo "$MSG" | head -n1)"
