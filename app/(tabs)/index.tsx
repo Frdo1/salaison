@@ -6,8 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Gallery } from '@/components/gallery';
 import { LanguagePicker } from '@/components/language';
 import { NoAdsModal, useNoAds } from '@/components/no-ads';
-import { Background, Bullets, KV, MeatPicker, MethodPicker, PlacePicker } from '@/components/ui';
-import { calculate, CalcResult, isMixedSalt, MeatId, MethodId, parseWeight, PlaceId, SALT_CONDITIONS } from '@/lib/calc';
+import { Background, Bullets, KV, MeatPicker, MethodPicker, PlacePicker, SvAdjuster } from '@/components/ui';
+import { calculate, CalcResult, isMixedSalt, MeatId, MethodId, parseWeight, PlaceId, SALT_CONDITIONS, validThickness } from '@/lib/calc';
 import { maybeShowInterstitial } from '@/lib/ads';
 import { useI18n } from '@/lib/i18n';
 import { useStore } from '@/lib/store';
@@ -20,6 +20,9 @@ export default function Accueil() {
   const [weightText, setWeightText] = useState('');
   const [method, setMethod] = useState<MethodId>('sousvide');
   const [place, setPlace] = useState<PlaceId>('frigo');
+  /** Sous vide : épaisseur facultative (cm) et ajustement manuel de la durée (heures). */
+  const [thicknessText, setThicknessText] = useState('');
+  const [svAdjust, setSvAdjust] = useState(0);
   const [result, setResult] = useState<CalcResult | null>(null);
   const [error, setError] = useState('');
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -37,8 +40,18 @@ export default function Accueil() {
       setResult(null);
       return;
     }
+    let thicknessCm: number | null = null;
+    if (!mixed && method === 'sousvide' && thicknessText.trim()) {
+      thicknessCm = validThickness(parseWeight(thicknessText));
+      if (thicknessCm == null) {
+        setError(t('invalid_thickness'));
+        setResult(null);
+        return;
+      }
+    }
     setError('');
-    setResult(calculate(meat, method, place, w));
+    setSvAdjust(0);
+    setResult(calculate(meat, method, place, w, { thicknessCm }));
     setTimeout(() => scroll.current?.scrollTo({ y: resultsY.current - 10, animated: true }), 80);
     setTimeout(maybeShowInterstitial, 1500);
   };
@@ -47,6 +60,18 @@ export default function Accueil() {
   const reset = <T,>(set: (v: T) => void) => (v: T) => {
     set(v);
     setResult(null);
+    setSvAdjust(0);
+  };
+
+  // Boutons −/+ : on recalcule avec le nouvel ajustement (le plancher de sécurité est appliqué par calculate).
+  const adjustSv = (adjustHours: number) => {
+    if (!result?.sv) return;
+    const r = calculate(result.meat, result.method, result.place, result.weightKg, {
+      thicknessCm: result.sv.thicknessCm,
+      adjustHours,
+    });
+    setSvAdjust(r.sv?.adjustHours ?? 0);
+    setResult(r);
   };
 
   const hoursText = (h: number) => {
@@ -106,6 +131,22 @@ export default function Accueil() {
               <Text style={S.section}>{t('method_label')}</Text>
               <MethodPicker value={method} onChange={reset(setMethod)} />
               <MethodInfo method={method} />
+              {method === 'sousvide' && (
+                <>
+                  <Text style={S.section}>{t('thickness_label')}</Text>
+                  <TextInput
+                    style={S.input}
+                    value={thicknessText}
+                    onChangeText={reset(setThicknessText)}
+                    placeholder={t('thickness_placeholder')}
+                    placeholderTextColor="#888"
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={onCalc}
+                  />
+                  <Text style={st.hint}>{t('thickness_hint')}</Text>
+                </>
+              )}
             </>
           )}
 
@@ -132,6 +173,7 @@ export default function Accueil() {
                       k={t('conditions')}
                       v={t(result.method === 'enfouissement' ? 'cond_enf' : result.method === 'sousvide' ? 'cond_sv' : 'cond_br')}
                     />
+                    {result.sv && <SvAdjuster sv={result.sv} hours={result.saltHours} onAdjust={adjustSv} />}
                     {result.method === 'sousvide' && <SousVideSteps hours={result.saltHours} />}
                   </>
                 )}
@@ -174,7 +216,15 @@ export default function Accueil() {
                 onPress={() =>
                   router.navigate({
                     pathname: '/planning',
-                    params: { meat: result.meat, method: result.method, place: result.place, weight: String(result.weightKg), ts: String(Date.now()) },
+                    params: {
+                      meat: result.meat,
+                      method: result.method,
+                      place: result.place,
+                      weight: String(result.weightKg),
+                      thickness: result.sv?.thicknessCm != null ? String(result.sv.thicknessCm) : '',
+                      svAdjust: String(svAdjust),
+                      ts: String(Date.now()),
+                    },
                   })
                 }>
                 <Text style={[S.buttonText, { color: C.orange }]}>📅 {t('add_to_planning')}</Text>
@@ -279,6 +329,7 @@ const st = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowRadius: 6,
   },
+  hint: { color: '#eee', fontSize: 14, fontStyle: 'italic', marginTop: 6, lineHeight: 20, textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
   error: { color: '#FFD2C7', fontSize: 15, fontWeight: '700', marginTop: 8 },
   resultCard: { borderLeftWidth: 5, borderLeftColor: C.orange },
   resultTitle: { color: C.orange, fontSize: 21, fontWeight: '800', marginBottom: 8 },

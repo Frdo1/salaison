@@ -67,6 +67,37 @@ const PROFILES: Record<MeatId, MeatProfile> = {
   autre: { saltCoef: 25, saltExp: 0.5, saltMin: 12, svBase: 24, svPerKg: 144, dryBase: 0.5, dryPerKg: 2, lossMin: 0.3, lossMax: 0.35 },
 };
 
+/**
+ * Sous vide d'après l'épaisseur (option) : le sel diffuse d'environ 1 cm par jour
+ * vers le cœur ; on ajoute 1 jour de marge pour que la concentration s'égalise.
+ */
+export const SV_HOURS_PER_CM = 24;
+export const SV_MARGIN_HOURS = 24;
+/** Minimum absolu sous vide, quelle que soit la pièce. */
+export const SV_MIN_HOURS = 48;
+/** Pas des boutons −/+ d'ajustement manuel. */
+export const SV_ADJUST_STEP = 12;
+export const THICKNESS_MIN = 0.5;
+export const THICKNESS_MAX = 20;
+
+/** Options du salage sous vide : épaisseur (cm) et ajustement manuel (heures, + ou −). */
+export type SvOptions = { thicknessCm?: number | null; adjustHours?: number };
+
+/** Épaisseur valide (0,5 à 20 cm) ou null si non renseignée / invalide. */
+export function validThickness(cm: number | null | undefined): number | null {
+  return cm != null && cm >= THICKNESS_MIN && cm <= THICKNESS_MAX ? cm : null;
+}
+
+/**
+ * Plancher de sécurité de l'ajustement manuel :
+ *  - épaisseur connue : 1 jour par cm (temps pour que le sel atteigne le cœur), au moins 48 h ;
+ *  - sinon : la moitié du temps calculé au poids, au moins 48 h.
+ */
+export function svMinHours(baseHours: number, thicknessCm: number | null) {
+  const floor = thicknessCm != null ? thicknessCm * SV_HOURS_PER_CM : baseHours / 2;
+  return Math.max(SV_MIN_HOURS, Math.round(floor));
+}
+
 /** Saumure : la viande se sale plus lentement qu'enfouie dans le sel sec. */
 const BRINE_FACTOR = 2;
 /** Cave à vin : plus humide, séchage un peu plus long qu'au frigo (v1.0 : 1,5 -> 2 sem). */
@@ -99,6 +130,17 @@ export type CalcResult = {
   ingredients: Ingredient[];
   totalWeeks: number;
   mixedSalt: boolean;
+  /** Sous vide uniquement (null sinon) : détail du calcul et de l'ajustement. */
+  sv: {
+    /** Épaisseur utilisée pour le calcul, ou null = calcul au poids */
+    thicknessCm: number | null;
+    /** Durée calculée avant ajustement manuel */
+    baseHours: number;
+    /** Ajustement réellement appliqué (après plancher) */
+    adjustHours: number;
+    /** Durée minimale autorisée */
+    minHours: number;
+  } | null;
 };
 
 const roundHalf = (n: number) => Math.round(n * 2) / 2;
@@ -109,12 +151,19 @@ export function parseWeight(text: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-export function calculate(meat: MeatId, method: MethodId, place: PlaceId, weightKg: number): CalcResult {
+export function calculate(
+  meat: MeatId,
+  method: MethodId,
+  place: PlaceId,
+  weightKg: number,
+  svOptions: SvOptions = {},
+): CalcResult {
   const p = PROFILES[meat];
   const w = weightKg;
   const ingredients: Ingredient[] = [];
 
   let saltHours = 0;
+  let sv: CalcResult['sv'] = null;
   if (p.mixedSalt) {
     // Saucisson : 25-28 g de sel nitrité par kg de mêlée, pas de phase de salage.
     ingredients.push({ key: 'curedSalt', grams: Math.round(w * 27) });
@@ -123,7 +172,15 @@ export function calculate(meat: MeatId, method: MethodId, place: PlaceId, weight
     // 1 à 1,5 kg de sel par kg de viande : on affiche le haut de fourchette, minimum 500 g.
     ingredients.push({ key: 'salt', grams: Math.max(500, Math.round(w * 1500)) });
   } else if (method === 'sousvide') {
-    saltHours = Math.round(p.svBase + p.svPerKg * w);
+    const thicknessCm = validThickness(svOptions.thicknessCm);
+    const baseHours =
+      thicknessCm != null
+        ? Math.max(SV_MIN_HOURS, Math.round(thicknessCm * SV_HOURS_PER_CM + SV_MARGIN_HOURS))
+        : Math.round(p.svBase + p.svPerKg * w);
+    // Très petites pièces : le calcul au poids peut donner moins de 48 h ; on ne l'allonge pas d'office.
+    const minHours = Math.min(baseHours, svMinHours(baseHours, thicknessCm));
+    saltHours = Math.max(minHours, baseHours + Math.round(svOptions.adjustHours ?? 0));
+    sv = { thicknessCm, baseHours, adjustHours: saltHours - baseHours, minHours };
     // Mélange SSV 4-2-1 : 70 g/kg -> 40 g sel, 20 g sucre, 10 g épices par kg.
     ingredients.push(
       { key: 'salt', grams: Math.round(w * 40) },
@@ -159,6 +216,7 @@ export function calculate(meat: MeatId, method: MethodId, place: PlaceId, weight
     ingredients,
     totalWeeks: Math.round((saltHours / 168 + dryWeeks) * 10) / 10,
     mixedSalt: !!p.mixedSalt,
+    sv,
   };
 }
 

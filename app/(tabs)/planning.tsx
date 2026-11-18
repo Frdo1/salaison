@@ -2,8 +2,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Background, DateField, Empty, Field, Header, KV, MeatPicker, MethodPicker, PlacePicker, Sheet } from '@/components/ui';
-import { calculate, currentLoss, isMixedSalt, MeatId, MEATS, MethodId, METHODS, parseWeight, PlaceId, PLACES, scheduleDates } from '@/lib/calc';
+import { Background, DateField, Empty, Field, Header, KV, MeatPicker, MethodPicker, PlacePicker, Sheet, SvAdjuster } from '@/components/ui';
+import { calculate, currentLoss, isMixedSalt, MeatId, MEATS, MethodId, METHODS, parseWeight, PlaceId, PLACES, scheduleDates, validThickness } from '@/lib/calc';
 import { fmtDate, useI18n } from '@/lib/i18n';
 import { addToCalendar, removeFromCalendar } from '@/lib/calendar';
 import { cancel, scheduleAt } from '@/lib/notify';
@@ -35,7 +35,15 @@ const STATUS_COLOR: Record<Status, string> = { salting: C.blue, drying: C.amber,
 export default function Planning() {
   const { t } = useI18n();
   const { plan, update } = useStore();
-  const params = useLocalSearchParams<{ meat?: string; method?: string; place?: string; weight?: string; ts?: string }>();
+  const params = useLocalSearchParams<{
+    meat?: string;
+    method?: string;
+    place?: string;
+    weight?: string;
+    thickness?: string;
+    svAdjust?: string;
+    ts?: string;
+  }>();
   const [formOpen, setFormOpen] = useState(false);
   const [weighing, setWeighing] = useState<PlanEntry | null>(null);
 
@@ -118,6 +126,8 @@ export default function Planning() {
             method: METHODS.includes(params.method as MethodId) ? (params.method as MethodId) : undefined,
             place: PLACES.includes(params.place as PlaceId) ? (params.place as PlaceId) : undefined,
             weight: params.weight,
+            thickness: params.thickness,
+            svAdjust: Number(params.svAdjust) || 0,
           } : {}}
         />
       )}
@@ -199,7 +209,7 @@ function EntryForm({
   initial,
 }: {
   onClose: () => void;
-  initial: { meat?: MeatId; method?: MethodId; place?: PlaceId; weight?: string };
+  initial: { meat?: MeatId; method?: MethodId; place?: PlaceId; weight?: string; thickness?: string; svAdjust?: number };
 }) {
   const { t, n } = useI18n();
   const { update } = useStore();
@@ -208,15 +218,24 @@ function EntryForm({
   const [method, setMethod] = useState<MethodId>(initial.method ?? 'enfouissement');
   const [place, setPlace] = useState<PlaceId>(initial.place ?? 'frigo');
   const [weight, setWeight] = useState(initial.weight ? n(Number(initial.weight), 3) : '');
+  const [thickness, setThickness] = useState(initial.thickness ? n(Number(initial.thickness)) : '');
+  const [svAdjust, setSvAdjust] = useState(initial.svAdjust ?? 0);
   const [start, setStart] = useState(new Date());
+  const isSv = !isMixedSalt(meat) && method === 'sousvide';
+  const thicknessCm = isSv && thickness.trim() ? validThickness(parseWeight(thickness)) : null;
+  // Aperçu en direct de la durée sous vide (avec ajustement) dès que le poids est valide.
+  const wPreview = parseWeight(weight);
+  const svPreview =
+    isSv && wPreview >= 0.05 && wPreview <= 20 ? calculate(meat, method, place, wPreview, { thicknessCm, adjustHours: svAdjust }) : null;
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     const w = parseWeight(weight);
     if (!(w >= 0.05 && w <= 20)) return setError(t('invalid_weight'));
+    if (isSv && thickness.trim() && thicknessCm == null) return setError(t('invalid_thickness'));
     setSaving(true);
-    const r = calculate(meat, method, place, w);
+    const r = calculate(meat, method, place, w, isSv ? { thicknessCm, adjustHours: svAdjust } : {});
     const { saltEnd, dryEnd } = scheduleDates(start, r);
     const label = name.trim() || t(`meat_${meat}`);
     const ids = [
@@ -256,6 +275,23 @@ function EntryForm({
         <>
           <Text style={S.label}>{t('method_label')}</Text>
           <MethodPicker value={method} onChange={setMethod} />
+        </>
+      )}
+      {isSv && (
+        <>
+          <Field
+            label={t('thickness_label')}
+            value={thickness}
+            onChangeText={(v) => {
+              setThickness(v);
+              setSvAdjust(0);
+            }}
+            placeholder={t('thickness_placeholder')}
+            keyboardType="decimal-pad"
+          />
+          {svPreview?.sv && (
+            <SvAdjuster sv={svPreview.sv} hours={svPreview.saltHours} onAdjust={(a) => setSvAdjust(a)} />
+          )}
         </>
       )}
       <Text style={S.label}>{t('place_label')}</Text>

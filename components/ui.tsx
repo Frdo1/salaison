@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MEATS, MeatId, METHODS, MethodId, PLACES, PlaceId } from '@/lib/calc';
+import { MEATS, MeatId, METHODS, MethodId, PLACES, PlaceId, SV_ADJUST_STEP } from '@/lib/calc';
 import { fmtDate, useI18n } from '@/lib/i18n';
 import { C, S } from '@/lib/theme';
 
@@ -129,6 +129,59 @@ export function Bullets({ text }: { text: string }) {
   );
 }
 
+/**
+ * Boutons −/+ pour ajuster la durée du salage sous vide.
+ * Affiche la durée retenue, l'écart avec le calcul et l'avertissement de minimum.
+ */
+export function SvAdjuster({
+  sv,
+  hours,
+  onAdjust,
+}: {
+  sv: { thicknessCm: number | null; baseHours: number; adjustHours: number; minHours: number };
+  hours: number;
+  onAdjust: (adjustHours: number) => void;
+}) {
+  const { t, n } = useI18n();
+  const atMin = hours <= sv.minHours;
+  const adj = sv.adjustHours;
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Text style={[S.line, { fontWeight: '600' }]}>
+        {sv.thicknessCm != null ? t('sv_by_thickness', { n: n(sv.thicknessCm) }) : t('sv_by_weight')}
+      </Text>
+      <Text style={[S.label, { marginTop: 8 }]}>{t('sv_adjust')}</Text>
+      <View style={st.stepper}>
+        <Pressable
+          style={[st.stepBtn, atMin && { opacity: 0.35 }]}
+          disabled={atMin}
+          onPress={() => onAdjust(adj - SV_ADJUST_STEP)}
+          accessibilityRole="button"
+          accessibilityLabel={`-${SV_ADJUST_STEP} h`}>
+          <Text style={st.stepText}>− {SV_ADJUST_STEP} h</Text>
+        </Pressable>
+        <Text style={st.stepValue}>{t('hours', { n: hours })}</Text>
+        <Pressable
+          style={st.stepBtn}
+          onPress={() => onAdjust(adj + SV_ADJUST_STEP)}
+          accessibilityRole="button"
+          accessibilityLabel={`+${SV_ADJUST_STEP} h`}>
+          <Text style={st.stepText}>+ {SV_ADJUST_STEP} h</Text>
+        </Pressable>
+      </View>
+      {adj !== 0 && (
+        <Text style={S.note}>{t('sv_adjusted', { n: (adj > 0 ? '+' : '−') + Math.abs(adj), base: sv.baseHours })}</Text>
+      )}
+      {atMin && adj < 0 && (
+        <Text style={[S.note, { color: C.red, fontStyle: 'normal' }]}>
+          {t('sv_min_reached', { n: sv.minHours })}
+          {sv.thicknessCm == null ? ` ${t('sv_min_hint')}` : ''}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 export function KV({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
   return (
     <View style={st.kv}>
@@ -220,6 +273,10 @@ export function Empty({ title, hint }: { title: string; hint: string }) {
 }
 
 const st = StyleSheet.create({
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  stepBtn: { backgroundColor: C.orange, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, minWidth: 82, alignItems: 'center' },
+  stepText: { color: C.white, fontSize: 16, fontWeight: '700' },
+  stepValue: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800', color: C.orange },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
