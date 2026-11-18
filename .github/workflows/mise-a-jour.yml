@@ -3,6 +3,8 @@
 # - Version Play Store (canal « production ») : onglet Actions > « Mise à jour de l'appli » > Run workflow > production.
 # Nécessite le secret (déjà en place) EXPO_TOKEN (Settings > Secrets and variables > Actions).
 # Mettre « [build] » dans le message du commit lance aussi un nouvel APK de test (EAS Build, profil preview).
+# Run workflow avec « Construire l'AAB Play Store » coché : lance le build de production (fichier .aab
+# à télécharger sur expo.dev puis à envoyer dans la Play Console). À faire seulement quand un module natif change.
 # Si on ajoute un module natif ou une permission, il faut refaire un build (et monter "version" dans app.json).
 name: Mise à jour de l'appli
 
@@ -17,6 +19,10 @@ on:
         type: choice
         options: [preview, production]
         default: preview
+      build_production:
+        description: Construire l'AAB Play Store (profil production)
+        type: boolean
+        default: false
 
 concurrency:
   group: eas-update-${{ inputs.canal || 'preview' }}
@@ -79,3 +85,25 @@ jobs:
 
       - name: Lancer le build APK (le lien arrive sur expo.dev)
         run: eas build --platform android --profile preview --non-interactive --no-wait
+
+  build-production:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Installer
+        run: npm ci
+
+      - name: Lancer le build AAB Play Store (le fichier arrive sur expo.dev)
+        run: eas build --platform android --profile production --non-interactive --no-wait
